@@ -1,4 +1,4 @@
-namespace AzureSQL.Portfolio
+namespace AlfieWoodland.Function.Binding
 {
     public class Project
     {
