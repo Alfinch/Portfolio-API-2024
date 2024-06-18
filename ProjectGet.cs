@@ -17,7 +17,7 @@ namespace AlfieWoodland.Function
         }
 
         [Function("ProjectGet")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "project/{id}")] HttpRequestData req, int id)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "project/{id}")] HttpRequestData req, int id)
         {
             _logger.LogInformation("Project GET function processed a request.");
 
