@@ -1,4 +1,3 @@
-using System.Net;
 using AlfieWoodland.Function.Binding;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -23,7 +22,7 @@ namespace AlfieWoodland.Function
             _logger.LogInformation("Project GET function processed a request.");
 
             var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            string query = "SELECT ([Title], [Description], [Image], [StartDate]) FROM [Project] WHERE [Id] = @Id";
+            string query = "SELECT p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Body] as [UpdateBody], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId] WHERE p.[Id] = @Id";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -33,22 +32,47 @@ namespace AlfieWoodland.Function
 
                 using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
-                    if (await reader.ReadAsync())
-                    {
-                        var result = new Project
-                        {
-                            Id = id,
-                            Title = reader.GetString(0),
-                            Description = reader.GetString(1),
-                            Image = reader.GetGuid(2),
-                            StartDate = reader.GetDateTime(3)
-                        };
-                        return new OkObjectResult(result);
-                    }
-                    else
+                    // If the project does not exist, return a 404
+                    if (!await reader.ReadAsync())
                     {
                         return new NotFoundResult();
                     }
+
+                    var updates = new List<Update>();
+
+                    // If the project exists, create a new project object
+                    var project = new Project
+                    {
+                        Id = id,
+                        Title = reader.GetString(0),
+                        Description = reader.GetString(1),
+                        Image = reader.GetGuid(2),
+                        StartDate = reader.GetDateTime(3),
+                        Updates = updates
+                    };
+
+                    // If the first update ID is null there are no updates
+                    if (reader.IsDBNull(4))
+                    {
+                        return new OkObjectResult(project);
+                    }
+
+                    // If the project has updates, add them to the project
+                    do
+                    {
+                        var update = new Update
+                        {
+                            Id = reader.GetInt32(4),
+                            Title = reader.GetString(5),
+                            Body = reader.GetString(6),
+                            Date = reader.GetDateTime(7)
+                        };
+
+                        updates.Add(update);
+
+                    } while (await reader.ReadAsync());
+
+                    return new OkObjectResult(project);
                 }
             }
         }
