@@ -1,4 +1,6 @@
 using AlfieWoodland.Function.Binding;
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -26,6 +28,16 @@ namespace AlfieWoodland.Function
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
+                var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT");
+
+                if (environment == "Production")
+                {
+                    var credential = new ManagedIdentityCredential();
+                    var tokenRequestContext = new TokenRequestContext(["https://database.windows.net/.default"]);
+                    var accessToken = await credential.GetTokenAsync(tokenRequestContext);
+                    conn.AccessToken = accessToken.Token;
+                }
+
                 SqlCommand cmd = new SqlCommand(query, conn);
                 await conn.OpenAsync();
 
