@@ -20,11 +20,7 @@ namespace AlfieWoodland.Function.Helper
 
             logger.LogInformation("Managed Identity enabled");
 
-            var clientId = Environment.GetEnvironmentVariable("ManagedIdentityClientId");
-
-            logger.LogInformation($"Managed Identity Client ID: {clientId}");
-
-            var credential = new ManagedIdentityCredential(clientId: clientId);
+            var credential = new ManagedIdentityCredential();
 
             logger.LogInformation("Managed Identity credential created");
 
@@ -34,7 +30,14 @@ namespace AlfieWoodland.Function.Helper
 
             var accessToken = await credential.GetTokenAsync(tokenRequestContext);
 
-            logger.LogInformation("Access token acquired");
+            if (String.IsNullOrEmpty(accessToken.Token))
+            {
+                logger.LogError("Access token not acquired");
+            }
+            else
+            {
+                logger.LogInformation("Access token acquired");
+            }
 
             connection.AccessToken = accessToken.Token;
         }
