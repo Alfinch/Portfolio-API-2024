@@ -41,7 +41,7 @@ namespace AlfieWoodland.Function
                     var updates = new List<Update>();
 
                     // If the project exists, create a new project object
-                    var project = new Project
+                    var project = new Project<Update>
                     {
                         Id = id,
                         Title = reader.GetString(0),

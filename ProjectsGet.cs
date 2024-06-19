@@ -22,7 +22,7 @@ namespace AlfieWoodland.Function
             _logger.LogInformation("Project GET function processed a request.");
 
             var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            string query = "SELECT p.[Id], p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Body] as [UpdateBody], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId]";
+            string query = "SELECT p.[Id], p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId]";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -31,7 +31,7 @@ namespace AlfieWoodland.Function
 
                 using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
-                    var projects = new List<Project>();
+                    var projects = new List<Project<UpdateSummary>>();
 
                     if (!await reader.ReadAsync())
                     {
@@ -40,10 +40,10 @@ namespace AlfieWoodland.Function
 
                     do
                     {
-                        var updates = new List<Update>();
+                        var updates = new List<UpdateSummary>();
 
                         // If the project exists, create a new project object
-                        var project = new Project
+                        var project = new Project<UpdateSummary>
                         {
                             Id = reader.GetInt32(0),
                             Title = reader.GetString(1),
@@ -64,12 +64,11 @@ namespace AlfieWoodland.Function
                         // If the project has updates, add them to the project
                         do
                         {
-                            var update = new Update
+                            var update = new UpdateSummary
                             {
                                 Id = reader.GetInt32(5),
                                 Title = reader.GetString(6),
-                                Body = reader.GetString(7),
-                                Date = reader.GetDateTime(8)
+                                Date = reader.GetDateTime(7)
                             };
 
                             updates.Add(update);
