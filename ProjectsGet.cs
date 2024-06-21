@@ -1,5 +1,4 @@
 using AlfieWoodland.Function.Binding;
-using AlfieWoodland.Function.Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -27,8 +26,6 @@ namespace AlfieWoodland.Function
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
-                await ManagedIdentityHelper.GetManagedIdentityAsync(conn, _logger);
-
                 SqlCommand cmd = new SqlCommand(query, conn);
                 await conn.OpenAsync();
 
