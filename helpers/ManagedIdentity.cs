@@ -28,18 +28,25 @@ namespace AlfieWoodland.Function.Helper
 
             logger.LogInformation("Token request context created");
 
-            var accessToken = await credential.GetTokenAsync(tokenRequestContext);
-
-            if (String.IsNullOrEmpty(accessToken.Token))
+            try
             {
-                logger.LogError("Access token not acquired");
-            }
-            else
-            {
-                logger.LogInformation("Access token acquired: {0}", accessToken.Token);
-            }
+                var accessToken = await credential.GetTokenAsync(tokenRequestContext);
 
-            connection.AccessToken = accessToken.Token;
+                if (string.IsNullOrEmpty(accessToken.Token))
+                {
+                    logger.LogError("Access token not acquired");
+                }
+                else
+                {
+                    logger.LogInformation("Access token acquired: {0}", accessToken.Token);
+                    connection.AccessToken = accessToken.Token;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to acquire access token for managed identity");
+                throw;
+            }
         }
     }
 }
