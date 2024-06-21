@@ -19,7 +19,7 @@ namespace AlfieWoodland.Function
         [Function("ProjectsGet")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "projects")] HttpRequestData req)
         {
-            _logger.LogInformation("Project GET function processed a request.");
+            _logger.LogInformation("Projects GET function processed a request.");
 
             var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
             string query = "SELECT p.[Id], p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId]";
