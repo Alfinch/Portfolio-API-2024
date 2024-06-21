@@ -36,7 +36,7 @@ namespace AlfieWoodland.Function.Helper
             }
             else
             {
-                logger.LogInformation("Access token acquired");
+                logger.LogInformation("Access token acquired: {0}", accessToken.Token);
             }
 
             connection.AccessToken = accessToken.Token;

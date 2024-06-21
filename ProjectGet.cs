@@ -27,7 +27,7 @@ namespace AlfieWoodland.Function
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
-                //await ManagedIdentityHelper.GetManagedIdentityAsync(conn, _logger);
+                await ManagedIdentityHelper.GetManagedIdentityAsync(conn, _logger);
 
                 SqlCommand cmd = new SqlCommand(query, conn);
                 cmd.Parameters.AddWithValue("@Id", id);
