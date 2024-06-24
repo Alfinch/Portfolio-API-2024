@@ -58,7 +58,7 @@ namespace AlfieWoodland.Function
                         // If the first update ID is null there are no updates
                         if (reader.IsDBNull(4))
                         {
-                            return new OkObjectResult(project);
+                            continue;
                         }
 
                         // If the project has updates, add them to the project
