@@ -40,29 +40,33 @@ namespace AlfieWoodland.Function
 
                     do
                     {
-                        var updates = new List<UpdateSummary>();
+                        List<UpdateSummary> updates;
 
-                        // If the project exists, create a new project object
-                        var project = new Project<UpdateSummary>
+                        // If this is the first project or a new project, create it
+                        if (projects.Count == 0 || projects.Last().Id != reader.GetInt32(0))
                         {
-                            Id = reader.GetInt32(0),
-                            Title = reader.GetString(1),
-                            Description = reader.GetString(2),
-                            Image = reader.GetGuid(3),
-                            StartDate = reader.GetDateTime(4),
-                            Updates = updates
-                        };
+                            updates = new List<UpdateSummary>();
 
-                        projects.Add(project);
+                            var project = new Project<UpdateSummary>
+                            {
+                                Id = reader.GetInt32(0),
+                                Title = reader.GetString(1),
+                                Description = reader.GetString(2),
+                                Image = reader.GetGuid(3),
+                                StartDate = reader.GetDateTime(4),
+                                Updates = updates
+                            };
 
-                        // If the first update ID is null there are no updates
-                        if (reader.IsDBNull(4))
+                            projects.Add(project);
+                        }
+                        // Otherwise, get the updates list from the last project
+                        else
                         {
-                            continue;
+                            updates = projects.Last().Updates.ToList();
                         }
 
-                        // If the project has updates, add them to the project
-                        do
+                        // If there is an update for this project, add it
+                        if (!reader.IsDBNull(5))
                         {
                             var update = new UpdateSummary
                             {
@@ -72,8 +76,7 @@ namespace AlfieWoodland.Function
                             };
 
                             updates.Add(update);
-
-                        } while (await reader.ReadAsync() && projects.Last().Id == reader.GetInt32(0));
+                        }
 
                     } while (await reader.ReadAsync());
 
