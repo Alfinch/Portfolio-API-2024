@@ -1,4 +1,7 @@
-using AlfieWoodland.Function.Binding;
+using AlfieWoodland.Function.Entity;
+using AlfieWoodland.Function.Model;
+using Azure;
+using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -10,10 +13,13 @@ namespace AlfieWoodland.Function
     public class ProjectsGet
     {
         private readonly ILogger<ProjectsGet> _logger;
+        private readonly TableServiceClient _tableServiceClient;
 
         public ProjectsGet(ILogger<ProjectsGet> logger)
         {
             _logger = logger;
+            string storageConnectionString = Environment.GetEnvironmentVariable("AzureStorageConnectionString") ?? throw new ArgumentNullException("AzureStorageConnectionString");
+            _tableServiceClient = new TableServiceClient(storageConnectionString);
         }
 
         [Function("ProjectsGet")]
@@ -21,67 +27,51 @@ namespace AlfieWoodland.Function
         {
             _logger.LogInformation("Projects GET function processed a request.");
 
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            string query = "SELECT p.[Id], p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId]";
+            var projectTableClient = _tableServiceClient.GetTableClient(tableName: "Project");
+            var updateTableClient = _tableServiceClient.GetTableClient(tableName: "Update");
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                SqlCommand cmd = new SqlCommand(query, conn);
-                await conn.OpenAsync();
+                var projectEntities = projectTableClient.QueryAsync<ProjectEntity>();
 
-                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                var projects = new List<Project<UpdateSummary>>();
+
+                await foreach (var projectEntity in projectEntities)
                 {
-                    var projects = new List<Project<UpdateSummary>>();
+                    var updateEntities = updateTableClient.QueryAsync<UpdateEntity>(filter: $"PartitionKey eq '{projectEntity.RowKey}'");
 
-                    if (!await reader.ReadAsync())
+                    var updates = new List<UpdateSummary>();
+
+                    await foreach (var updateEntity in updateEntities)
                     {
-                        return new OkObjectResult(projects);
+                        var update = new UpdateSummary
+                        {
+                            Id = new Guid(updateEntity.RowKey),
+                            Title = updateEntity.Title,
+                            Date = updateEntity.Date
+                        };
+
+                        updates.Add(update);
                     }
 
-                    do
+                    var project = new Project<UpdateSummary>
                     {
-                        List<UpdateSummary> updates;
+                        Id = new Guid(projectEntity.RowKey),
+                        Title = projectEntity.Title,
+                        Description = projectEntity.Description,
+                        Image = projectEntity.Image,
+                        StartDate = updates.Any() ? updates.Min(u => u.Date) : null,
+                        Updates = updates
+                    };
 
-                        // If this is the first project or a new project, create it
-                        if (projects.Count == 0 || projects.Last().Id != reader.GetInt32(0))
-                        {
-                            updates = new List<UpdateSummary>();
-
-                            var project = new Project<UpdateSummary>
-                            {
-                                Id = reader.GetInt32(0),
-                                Title = reader.GetString(1),
-                                Description = reader.GetString(2),
-                                Image = reader.GetGuid(3),
-                                StartDate = reader.GetDateTime(4),
-                                Updates = updates
-                            };
-
-                            projects.Add(project);
-                        }
-                        // Otherwise, get the updates list from the last project
-                        else
-                        {
-                            updates = projects.Last().Updates.ToList();
-                        }
-
-                        // If there is an update for this project, add it
-                        if (!reader.IsDBNull(5))
-                        {
-                            var update = new UpdateSummary
-                            {
-                                Id = reader.GetInt32(5),
-                                Title = reader.GetString(6),
-                                Date = reader.GetDateTime(7)
-                            };
-
-                            updates.Add(update);
-                        }
-
-                    } while (await reader.ReadAsync());
-
-                    return new OkObjectResult(projects);
+                    projects.Add(project);
                 }
+
+                return new OkObjectResult(projects);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return new NotFoundResult();
             }
         }
     }

@@ -1,8 +1,8 @@
-namespace AlfieWoodland.Function.Binding
+namespace AlfieWoodland.Function.Model
 {
     public class UpdateSummary
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public required string Title { get; set; }
         public DateTime Date { get; set; }
     }

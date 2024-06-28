@@ -1,8 +1,10 @@
-using AlfieWoodland.Function.Binding;
+using AlfieWoodland.Function.Entity;
+using AlfieWoodland.Function.Model;
+using Azure;
+using Azure.Data.Tables;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace AlfieWoodland.Function
@@ -10,45 +12,44 @@ namespace AlfieWoodland.Function
     public class UpdateGet
     {
         private readonly ILogger<UpdateGet> _logger;
+        private readonly TableServiceClient _tableServiceClient;
 
         public UpdateGet(ILogger<UpdateGet> logger)
         {
             _logger = logger;
+            string storageConnectionString = Environment.GetEnvironmentVariable("AzureStorageConnectionString") ?? throw new ArgumentNullException("AzureStorageConnectionString");
+            _tableServiceClient = new TableServiceClient(storageConnectionString);
         }
 
         [Function("UpdateGet")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "update/{id}")] HttpRequest req, int id)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "update/{id}")] HttpRequest req, string id)
         {
             _logger.LogInformation("Project GET function processed a request.");
 
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            string query = "SELECT [Title], [Body], [Date] FROM [UPDATE] WHERE [Id] = @Id";
+            var tableClient = _tableServiceClient.GetTableClient(tableName: "Update");
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Id", id);
-                await conn.OpenAsync();
+                var entities = tableClient.QueryAsync<UpdateEntity>(filter: $"RowKey eq '{id}'");
 
-                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                await foreach (var entity in entities)
                 {
-                    // If the update does not exist, return a 404
-                    if (!await reader.ReadAsync())
-                    {
-                        return new NotFoundResult();
-                    }
-
-                    // If the update exists, create a new update object
                     var update = new Update
                     {
-                        Id = id,
-                        Title = reader.GetString(0),
-                        Body = reader.GetString(1),
-                        Date = reader.GetDateTime(2)
+                        Id = new Guid(entity.RowKey),
+                        Title = entity.Title,
+                        Body = entity.Body,
+                        Date = entity.Date
                     };
 
                     return new OkObjectResult(update);
                 }
+
+                return new NotFoundResult();
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return new NotFoundResult();
             }
         }
     }

@@ -1,8 +1,10 @@
-using AlfieWoodland.Function.Binding;
+using AlfieWoodland.Function.Entity;
+using AlfieWoodland.Function.Model;
+using Azure;
+using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace AlfieWoodland.Function
@@ -10,70 +12,64 @@ namespace AlfieWoodland.Function
     public class ProjectGet
     {
         private readonly ILogger<ProjectsGet> _logger;
+        private readonly TableServiceClient _tableServiceClient;
 
         public ProjectGet(ILogger<ProjectsGet> logger)
         {
             _logger = logger;
+            string storageConnectionString = Environment.GetEnvironmentVariable("AzureStorageConnectionString") ?? throw new ArgumentNullException("AzureStorageConnectionString");
+            _tableServiceClient = new TableServiceClient(storageConnectionString);
         }
 
         [Function("ProjectGet")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "project/{id}")] HttpRequestData req, int id)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "project/{id}")] HttpRequestData req, string id)
         {
             _logger.LogInformation("Project GET function processed a request.");
 
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            string query = "SELECT p.[Title], p.[Description], p.[Image], p.[StartDate], u.[Id] as [UpdateId], u.[Title] as [UpdateTitle], u.[Body] as [UpdateBody], u.[Date] as [UpdateDate] FROM [Project] p LEFT JOIN [UPDATE] u ON p.[Id] = u.[ProjectId] WHERE p.[Id] = @Id";
+            var projectTableClient = _tableServiceClient.GetTableClient(tableName: "Project");
+            var updateTableClient = _tableServiceClient.GetTableClient(tableName: "Update");
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Id", id);
-                await conn.OpenAsync();
+                var projectEntities = projectTableClient.QueryAsync<ProjectEntity>(filter: $"RowKey eq '{id}'");
 
-                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                await foreach (var projectEntity in projectEntities)
                 {
-                    // If the project does not exist, return a 404
-                    if (!await reader.ReadAsync())
-                    {
-                        return new NotFoundResult();
-                    }
+                    var updateEntities = updateTableClient.QueryAsync<UpdateEntity>(filter: $"PartitionKey eq '{projectEntity.RowKey}'");
 
                     var updates = new List<Update>();
 
-                    // If the project exists, create a new project object
-                    var project = new Project<Update>
-                    {
-                        Id = id,
-                        Title = reader.GetString(0),
-                        Description = reader.GetString(1),
-                        Image = reader.GetGuid(2),
-                        StartDate = reader.GetDateTime(3),
-                        Updates = updates
-                    };
-
-                    // If the first update ID is null there are no updates
-                    if (reader.IsDBNull(4))
-                    {
-                        return new OkObjectResult(project);
-                    }
-
-                    // If the project has updates, add them to the project
-                    do
+                    await foreach (var updateEntity in updateEntities)
                     {
                         var update = new Update
                         {
-                            Id = reader.GetInt32(4),
-                            Title = reader.GetString(5),
-                            Body = reader.GetString(6),
-                            Date = reader.GetDateTime(7)
+                            Id = new Guid(updateEntity.RowKey),
+                            Title = updateEntity.Title,
+                            Body = updateEntity.Body,
+                            Date = updateEntity.Date
                         };
 
                         updates.Add(update);
+                    }
 
-                    } while (await reader.ReadAsync());
+                    var project = new Project<Update>
+                    {
+                        Id = new Guid(projectEntity.RowKey),
+                        Title = projectEntity.Title,
+                        Description = projectEntity.Description,
+                        Image = projectEntity.Image,
+                        StartDate = updates.Any() ? updates.Min(u => u.Date) : null,
+                        Updates = updates
+                    };
 
                     return new OkObjectResult(project);
                 }
+
+                return new NotFoundResult();
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return new NotFoundResult();
             }
         }
     }
