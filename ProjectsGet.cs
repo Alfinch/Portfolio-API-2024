@@ -54,18 +54,23 @@ namespace AlfieWoodland.Function
                         updates.Add(update);
                     }
 
+                    updates = updates.OrderByDescending(u => u.Date).ToList();
+
                     var project = new Project<UpdateSummary>
                     {
                         Id = new Guid(projectEntity.RowKey),
                         Title = projectEntity.Title,
                         Description = projectEntity.Description,
                         Image = projectEntity.Image,
-                        StartDate = updates.Any() ? updates.Min(u => u.Date) : null,
+                        FirstUpdated = updates.Any() ? updates.Min(u => u.Date) : null,
+                        LastUpdated = updates.Any() ? updates.Max(u => u.Date) : null,
                         Updates = updates
                     };
 
                     projects.Add(project);
                 }
+
+                projects = projects.OrderByDescending(p => p.LastUpdated).ToList();
 
                 return new OkObjectResult(projects);
             }
