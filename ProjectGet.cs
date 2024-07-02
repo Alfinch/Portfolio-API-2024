@@ -52,7 +52,7 @@ namespace AlfieWoodland.Function
                         updates.Add(update);
                     }
 
-                    updates = updates.OrderByDescending(u => u.Date).ToList();
+                    updates = updates.OrderBy(u => u.Date).ToList();
 
                     var project = new Project<Update>
                     {
