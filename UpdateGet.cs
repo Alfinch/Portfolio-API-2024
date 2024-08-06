@@ -22,7 +22,7 @@ namespace AlfieWoodland.Function
         }
 
         [Function("UpdateGet")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "update/{id}")] HttpRequest req, string id)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "project/{projectSlug}/{updateSlug}")] HttpRequest req, string projectSlug, string updateSlug)
         {
             _logger.LogInformation("Project GET function processed a request.");
 
@@ -30,20 +30,26 @@ namespace AlfieWoodland.Function
 
             try
             {
-                var entities = tableClient.QueryAsync<UpdateEntity>(filter: $"RowKey eq '{id}'");
+                var projectEntities = tableClient.QueryAsync<UpdateEntity>(filter: $"Slug eq '{projectSlug}'");
 
-                await foreach (var entity in entities)
+                await foreach (var projectEntity in projectEntities)
                 {
-                    var update = new Update
-                    {
-                        Id = new Guid(entity.RowKey),
-                        Slug = entity.Slug,
-                        Title = entity.Title,
-                        Body = entity.Body,
-                        Date = entity.Date
-                    };
+                    var updateEntities = tableClient.QueryAsync<UpdateEntity>(filter: $"PartitionKey eq '{projectEntity.RowKey}' and Slug eq '{updateSlug}'");
 
-                    return new OkObjectResult(update);
+                    await foreach (var updateEntity in updateEntities)
+                    {
+                        var update = new Update
+                        {
+                            Slug = updateEntity.Slug,
+                            Title = updateEntity.Title,
+                            Body = updateEntity.Body,
+                            Date = updateEntity.Date
+                        };
+
+                        return new OkObjectResult(update);
+                    }
+
+                    return new NotFoundResult();
                 }
 
                 return new NotFoundResult();

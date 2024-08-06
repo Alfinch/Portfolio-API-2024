@@ -43,7 +43,6 @@ namespace AlfieWoodland.Function
                     {
                         var update = new Update
                         {
-                            Id = new Guid(updateEntity.RowKey),
                             Slug = updateEntity.Slug,
                             Title = updateEntity.Title,
                             Body = updateEntity.Body,
@@ -57,7 +56,6 @@ namespace AlfieWoodland.Function
 
                     var project = new Project<Update>
                     {
-                        Id = new Guid(projectEntity.RowKey),
                         Slug = projectEntity.Slug,
                         Title = projectEntity.Title,
                         Description = projectEntity.Description,

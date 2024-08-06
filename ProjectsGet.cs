@@ -5,7 +5,6 @@ using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace AlfieWoodland.Function
@@ -46,7 +45,6 @@ namespace AlfieWoodland.Function
                     {
                         var update = new UpdateSummary
                         {
-                            Id = new Guid(updateEntity.RowKey),
                             Slug = updateEntity.Slug,
                             Title = updateEntity.Title,
                             Date = updateEntity.Date
@@ -59,7 +57,6 @@ namespace AlfieWoodland.Function
 
                     var project = new Project<UpdateSummary>
                     {
-                        Id = new Guid(projectEntity.RowKey),
                         Slug = projectEntity.Slug,
                         Title = projectEntity.Title,
                         Description = projectEntity.Description,
