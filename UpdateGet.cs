@@ -37,6 +37,7 @@ namespace AlfieWoodland.Function
                     var update = new Update
                     {
                         Id = new Guid(entity.RowKey),
+                        Slug = entity.Slug,
                         Title = entity.Title,
                         Body = entity.Body,
                         Date = entity.Date

@@ -22,7 +22,7 @@ namespace AlfieWoodland.Function
         }
 
         [Function("ProjectGet")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "project/{id}")] HttpRequestData req, string id)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "project/{slug}")] HttpRequestData req, string slug)
         {
             _logger.LogInformation("Project GET function processed a request.");
 
@@ -31,7 +31,7 @@ namespace AlfieWoodland.Function
 
             try
             {
-                var projectEntities = projectTableClient.QueryAsync<ProjectEntity>(filter: $"RowKey eq '{id}'");
+                var projectEntities = projectTableClient.QueryAsync<ProjectEntity>(filter: $"Slug eq '{slug}'");
 
                 await foreach (var projectEntity in projectEntities)
                 {
@@ -44,6 +44,7 @@ namespace AlfieWoodland.Function
                         var update = new Update
                         {
                             Id = new Guid(updateEntity.RowKey),
+                            Slug = updateEntity.Slug,
                             Title = updateEntity.Title,
                             Body = updateEntity.Body,
                             Date = updateEntity.Date
@@ -57,6 +58,7 @@ namespace AlfieWoodland.Function
                     var project = new Project<Update>
                     {
                         Id = new Guid(projectEntity.RowKey),
+                        Slug = projectEntity.Slug,
                         Title = projectEntity.Title,
                         Description = projectEntity.Description,
                         Image = projectEntity.Image,
